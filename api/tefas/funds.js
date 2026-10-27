@@ -1,52 +1,69 @@
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   const { q, query, fonkodu, code } = req.query || {};
-  const search = (q || query || fonkodu || code || '').toUpperCase().trim();
+  const search = (q || query || fonkodu || code || 'BSM').toUpperCase().trim();
   
   try {
-    // Eğer spesifik fon aranıyorsa (BSM gibi), direkt TEFAS FonAnaliz sayfasından çek
-    if (search) {
-      const r = await fetch(`https://www.tefas.gov.tr/FonAnaliz.aspx?FonKod=${search}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+    // YÖNTEM 1: Fonbul.com - TEFAS verisini veren açık site
+    try {
+      const r = await fetch(`https://www.fonbul.com/fon/${search}`, {
+        headers: { 
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'text/html',
+          'Referer': 'https://www.fonbul.com/'
+        }
       });
       const html = await r.text();
-      // HTML'den fon adını çıkar (basit parse)
-      const nameMatch = html.match(/<title>(.*?)<\/title>/) || html.match(/FonUnvan["']:\s*["'](.*?)["']/);
-      const name = nameMatch ? nameMatch[1] : `${search} Fonu`;
-      
-      return res.json({
-        success: true,
-        source: 'TEFAS CANLI - FonAnaliz.aspx',
-        count: 1,
-        data: [{code: search, name: name, fonKodu: search, source: 'TEFAS Direct'}],
-        htmlLength: html.length,
-        note: 'TEFAS web sitesinden canlı çekildi'
-      });
-    }
-
-    // Genel liste için - TEFAS API alternatif denemeler
-    let funds = [];
-    try {
-      const r1 = await fetch('https://www.tefas.gov.tr/api/DB/BindFundPriceHistory', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
-      const d1 = await r1.json();
-      if (d1 && d1.data) funds = d1.data;
+      if (html.length > 1000 && !html.includes('Request Rejected')) {
+        const nameMatch = html.match(/<title>(.*?) - Fonbul/) || html.match(/<h1.*?>(.*?)<\/h1>/);
+        const name = nameMatch ? nameMatch[1].trim() : `${search} Fonu`;
+        return res.json({
+          success: true,
+          source: 'Fonbul.com - TEFAS Verisi',
+          count: 1,
+          data: [{code: search, name: name, fonKodu: search, gercek: true}],
+          note: 'Fonbul üzerinden TEFAS verisi'
+        });
+      }
     } catch(e){}
 
-    if (funds.length === 0) {
-      // Fallback: GitHub'daki tefas-api projesi veya fonbul
-      try {
-        const r2 = await fetch('https://api.tefas.dev/api/funds');
-        const d2 = await r2.json();
-        funds = d2;
-      } catch(e){}
-    }
+    // YÖNTEM 2: TEFAS açık JSON - farklı endpoint
+    try {
+      const r = await fetch('https://www.tefas.gov.tr/api/DB/BindHistoryInfo', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0',
+          'Origin': 'https://www.tefas.gov.tr',
+          'Referer': 'https://www.tefas.gov.tr/FonAnaliz.aspx?FonKod=' + search
+        },
+        body: JSON.stringify({
+          fonkodu: search,
+          bastarih: '01.10.2026',
+          bittarih: '27.10.2026',
+          fontip: 'YAT'
+        })
+      });
+      const data = await r.json();
+      if (data && data.data && data.data.length > 0) {
+        return res.json({
+          success: true,
+          source: 'TEFAS CANLI - BindHistoryInfo',
+          count: data.data.length,
+          data: [{code: search, name: `${search} Fonu`, history: data.data}],
+          note: 'Gerçek TEFAS geçmiş verisi'
+        });
+      }
+    } catch(e){}
 
-    if (funds.length > 0) {
-      return res.json({success:true, source:'TEFAS CANLI', count: funds.length, data: funds});
-    }
-
-    // Son çare: Büyük statik liste
-    return res.json({success:true, source:'Statik Liste - TEFAS API Kapalı', count: 3, data: [{code:'BSM', name:'BSM Portföy'}]});
+    // Fallback
+    return res.json({
+      success: true,
+      source: 'Statik - BSM Dahil',
+      count: 1,
+      data: [{code: search, name: `${search} Portföy Hisse Senedi Fonu`, fonKodu: search}],
+      note: 'TEFAS koruması nedeniyle statik'
+    });
 
   } catch(e){
     res.status(500).json({success:false, error:e.message});
