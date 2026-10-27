@@ -1,19 +1,5 @@
 {
-  "name": "portfolio-pulse-100-real",
+  "name": "portfolio-pulse",
   "version": "1.0.0",
-  "description": "Portfolio Pulse - TEFAS + KAP + BIST 100% gercek veri backend - Vercel Ready",
-  "type": "module",
-  "main": "api/tefas/funds.js",
-  "scripts": {
-    "dev": "vercel dev",
-    "start": "vercel dev",
-    "deploy": "vercel --prod"
-  },
-  "keywords": ["tefas", "kap", "bist", "fon", "borsa", "vercel", "real-data"],
-  "author": "",
-  "license": "MIT",
-  "engines": {
-    "node": "18.x"
-  },
-  "dependencies": {}
+  "private": true
 }
