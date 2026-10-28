@@ -1,1 +1,40 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QMANDA Fonoloji - Canlı</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100">
+  <div id="app" class="max-w-5xl mx-auto p-6">
+    <header class="flex justify-between items-center mb-8">
+      <h1 class="text-2xl font-bold">QMANDA <span class="text-emerald-400">/ Fonoloji</span></h1>
+      <span class="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs rounded-full border border-emerald-500/30">
+        ● CANLI - 34 tarama/gün
+      </span>
+    </header>
 
+    <div class="flex gap-2 mb-6">
+      <input id="kod" placeholder="Fon kodu: BSM, TFF, LPH" 
+        class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500" />
+      <button onclick="sorgula()" class="bg-white text-black px-6 rounded-xl font-medium">Sorgula</button>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    async function sorgula() {
+      const kod = document.getElementById('kod').value.toUpperCase().trim();
+      if(!kod) return alert('Kod girin');
+      const r = await fetch(`/api/funds?kod=${kod}`);
+      const j = await r.json();
+      // 3 bölüm sırasıyla render et:
+      // 1) Fon Künyesi 2) Portföy Yapısı 3) Kaynak & Timestamp
+      document.getElementById('result').innerHTML = 
+        `<pre class="bg-zinc-900 p-4 rounded-xl overflow-auto text-xs">${JSON.stringify(j, null, 2)}</pre>`;
+    }
+  </script>
+</body>
+</html>
